@@ -2,7 +2,7 @@ module axi_ds_tr_compl #(
     parameter type  axi_req_t = lint_wrapper::req_t,
     /// AXI Full response struct type
     parameter type  axi_rsp_t = lint_wrapper::resp_t
-) 
+)
 (
     input clk_i, rst_ni,
     input  axi_rsp_t axi_ds_tr_compl_i,
@@ -34,8 +34,8 @@ module axi_ds_tr_compl #(
 // macros ended
 
     default clocking @(posedge clk_i); endclocking
-    default disable iff (~rst_ni);  
-    
+    default disable iff (~rst_ni);
+
     property valid_stable(valid, ready, signal);
         valid && !ready |=> $stable(signal);
     endproperty
@@ -75,18 +75,18 @@ module axi_ds_tr_compl #(
 
 // handshakes started
     logic ar_hsk_trnsl_compl, r_hsk_trnsl_compl;
-    assign ar_hsk_trnsl_compl = axi_ds_tr_compl_o.ar_valid && axi_ds_tr_compl_i.ar_ready; 
-    assign r_hsk_trnsl_compl = axi_ds_tr_compl_o.r_ready && axi_ds_tr_compl_i.r_valid; 
+    assign ar_hsk_trnsl_compl = axi_ds_tr_compl_o.ar_valid && axi_ds_tr_compl_i.ar_ready;
+    assign r_hsk_trnsl_compl = axi_ds_tr_compl_o.r_ready && axi_ds_tr_compl_i.r_valid;
 
     logic aw_hsk_trnsl_compl, w_hsk_trnsl_compl, b_hsk_trnsl_compl;
     assign aw_hsk_trnsl_compl = axi_ds_tr_compl_o.aw_valid && axi_ds_tr_compl_i.aw_ready;
-    assign w_hsk_trnsl_compl  = axi_ds_tr_compl_o.w_valid && axi_ds_tr_compl_i.w_ready; 
-    assign b_hsk_trnsl_compl  = axi_ds_tr_compl_o.b_ready && axi_ds_tr_compl_i.b_valid; 
+    assign w_hsk_trnsl_compl  = axi_ds_tr_compl_o.w_valid && axi_ds_tr_compl_i.w_ready;
+    assign b_hsk_trnsl_compl  = axi_ds_tr_compl_o.b_ready && axi_ds_tr_compl_i.b_valid;
 // handshakes ended
 
 //-----------------Write channel started----------------------------
 
-    logic [lint_wrapper::AddrWidth - 1:0] fifo_addr_compl_w, capture_addr_compl_w; 
+    logic [lint_wrapper::AddrWidth - 1:0] fifo_addr_compl_w, capture_addr_compl_w;
     logic [2:0] fifo_size_compl_w, capture_size_compl_w;
     logic [7:0] fifo_len_compl_w, capture_len_compl_w;
     logic [lint_wrapper::IdWidth - 1:0] fifo_id_compl_w, capture_id_compl_w;
@@ -185,7 +185,7 @@ module axi_ds_tr_compl #(
     assmp_not_pop_when_empty: // rvalid dependency
     assume property (fifo_combined_empty_r |-> !axi_ds_tr_compl_i.r_valid);
 
-    assmp_ids_less_than_2: 
+    assmp_ids_less_than_2:
     assume property(axi_ds_tr_compl_i.r.id <= 2);
 
 //-----------------read channel ended---------------------------
@@ -208,14 +208,14 @@ module axi_ds_tr_compl #(
     assume property (counter_rlast == fifo_len_tr_compl_r && axi_ds_tr_compl_i.r_valid |-> axi_ds_tr_compl_i.r.last);
 
     assmp_9_rlast: // if counter_rlast == capture_arlen, valid is high and symbolic_addr is seen then wlast must be asserted
-    assume property (!(counter_rlast == fifo_len_tr_compl_r && axi_ds_tr_compl_i.r_valid) |-> !axi_ds_tr_compl_i.r.last);   
+    assume property (!(counter_rlast == fifo_len_tr_compl_r && axi_ds_tr_compl_i.r_valid) |-> !axi_ds_tr_compl_i.r.last);
 
 // --------------------------------------aux code for rlast Ended---------------------------------------------
 
 // overconstraint on read channel interleaving started
     assmp_not_interleaving_read:
     assume property (axi_ds_tr_compl_i.r_valid |-> fifo_id_tr_compl_r == `rid_comple);
-    
+
 // overconstraint on read channel interleaving ended
 
 // rvalid must come after aw_hsk started
