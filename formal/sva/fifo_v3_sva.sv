@@ -32,11 +32,11 @@ int smart_tracker;
 assign incr = push_i && !full_o && !data_sampled;
 assign decr = pop_i  && !empty_o && !sampled_out;
 
-always @(posedge clk_i or negedge rst_ni) 
-    if (!rst_ni || flush_i) 
+always @(posedge clk_i or negedge rst_ni)
+    if (!rst_ni || flush_i)
         smart_tracker <= 0;
-    else 
-        smart_tracker <= smart_tracker + incr - decr;    
+    else
+        smart_tracker <= smart_tracker + incr - decr;
 
 logic ready_to_sample_in_data, data_sampled, sampled_out, must_read;
 
@@ -59,37 +59,34 @@ always @(posedge clk_i or negedge rst_ni) begin
 end
 
 //----------------------------assumptions started-----------------------------
-    assmp1_stable_data:
-    assume property ($stable(symbolic_data) && !flush_i);
+    assmp1_stable_data:assume property ($stable(symbolic_data) && !flush_i);
 
-    assmp2_full:
-    assume property(full_o |-> !push_i || pop_i);  // Do not push when full unless pop is also high
+    // Do not push when full unless pop is also high
+    assmp2_full: assume property(full_o |-> !push_i || pop_i);
 
-    assmp3_empty:
-    assume property(empty_o |-> !pop_i);          // Do not pop data when empty_o is high.
-
+    // Do not pop data when empty_o is high.
+    assmp3_empty: assume property(empty_o |-> !pop_i);
 //----------------------------assumptions started-----------------------------
 
 //----------------------------assertons started-----------------------------
 generate
 for (genvar i = 0; i < DATA_WIDTH; i++) begin
-asrt1_ordering_nd_data_integrity:
-assert property (must_read |=> (data_o[i] == symbolic_data[i]));
+asrt1_ordering_nd_data_integrity: assert property (must_read |=> (data_o[i] == symbolic_data[i]));
 
 if(!FALL_THROUGH)
     asrt2_first_entry: // if symbolic data come in first fifo entry and fallthorugh is zero then in next cycle without pop data must come
-    assert property(smart_tracker == 0 && ready_to_sample_in_data |=> (data_o[i] == symbolic_data[i])); 
+    assert property(smart_tracker == 0 && ready_to_sample_in_data |=> (data_o[i] == symbolic_data[i]));
 else
     asrt2_first_entry: // if symbolic data come in first fifo entry and fallthorugh is one then in that cycle without pop data must come
-    assert property(smart_tracker == 0 && ready_to_sample_in_data  |-> (data_o[i] == symbolic_data[i])); 
+    assert property(smart_tracker == 0 && ready_to_sample_in_data  |-> (data_o[i] == symbolic_data[i]));
 end
 endgenerate
 
-asrt3_eventually_full: // DEPTH_BITS writes to an empty FIFO without any pops will make it full.
-assert property ( empty_o ##1 (push_i && !pop_i)[*DEPTH] |=> full_o);
+// DEPTH_BITS writes to an empty FIFO without any pops will make it full.
+asrt3_eventually_full: assert property ( empty_o ##1 (push_i && !pop_i)[*DEPTH] |=> full_o);
 
-asrt4_eventually_empty: // DEPTH_BITS pops to a full FIFO without any pushes will make it empty.
-assert property (full_o ##1 (!push_i && pop_i)[*DEPTH] |=> empty_o); 
+// DEPTH_BITS pops to a full FIFO without any pushes will make it empty.
+asrt4_eventually_empty: assert property (full_o ##1 (!push_i && pop_i)[*DEPTH] |=> empty_o);
 //----------------------------assertons ended-----------------------------
 
 endmodule
