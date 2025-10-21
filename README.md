@@ -58,6 +58,6 @@ The following components and functionalities were covered as part of the formal 
 
 Planned extensions and improvements to this formal verification environment include:
 
-- [ ] **Continued development** and optimization of the Formal Verification IP (FVIP).
-- [ ] **Completion of the AXI modeling**, which is currently 70% implemented.
+- [ ] Continued development and optimization of the Formal Verification IP (FVIP).
+- [ ] Completion of the AXI modeling, which is currently 70% implemented.
 - [ ] Although the existing properties have already detected 20+ bugs, further refinement is possible - especially when applied to a more stable RTL version.
