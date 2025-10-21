@@ -1,4 +1,4 @@
-# RISC0-V IOMMU FORMAL
+# RISC-V IOMMU FORMAL
 
 This repository contains the formal verification environment for the [Zero Day Labs RISC-V IOMMU](https://github.com/zero-day-labs/riscv-iommu) design.
 
