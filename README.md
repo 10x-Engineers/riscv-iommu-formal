@@ -22,37 +22,24 @@ This work is licensed under the Apache-2.0. See [LICENSE](./LICENSE) file for de
 
 The RISC-V IOMMU architecture consists of three primary components:
 
-1. Translation Logic modules, which play a crucial role in the address translation process, enabling access to memory to locate data structures or caching context/translation data;
-2. External interfaces, used by the IOMMU to interact with other hardware subsystems within the platform. 
-3. Software interface modules, responsible for creating communication channels between the IOMMU hardware and software for specific purposes;
+1. **Translation Logic** modules, which play a crucial role in the address translation process, enabling access to memory to locate data structures or caching context/translation data;
+2. **External interfaces**, used by the IOMMU to interact with other hardware subsystems within the platform.
+3. **Software interface** modules, responsible for creating communication channels between the IOMMU hardware and software for specific purposes;
 
-In this verification effort, the focus is on the **Translation Logic modules and External Interfaces**.  
-The Software interface is **black-boxed**, allowing the formal verification environment to concentrate on the correctness, consistency, and completeness of the translation logic.
-
-The verification setup is built using **SystemVerilog Assertions (SVA)** and **Cadence JasperGold**, including a comprehensive set of assumptions, constraints, and cover properties to ensure exhaustive verification of translation behavior.
-
+In this verification effort, the focus is on the **Translation Logic modules and External Interfaces**. The Software interface is **black-boxed**, allowing the formal verification environment to concentrate on the correctness, consistency, and completeness of the translation logic.
 ## **Repository Structure**
 
-- **Required SV headers ([include/](./include/)):**
-SystemVerilog header files required to build the IP.
+- **Bind file ([bind](./formal/bind/)):**
+Contains the SystemVerilog bind file used to connect the FPV environment with the RTL.
 
-- **Required SV packages ([packages/](./packages/)):**
-SystemVerilog packages used to build the IP.
+- **Scripts ([script](./formal/script/)):**
+Includes scripts used to run the testbench (TB) on JasperGold 2019.
 
-- **RTL source files ([rtl/](./rtl/)):**
-SystemVerilog source files that implement the IP, organized according to hardware blocks defined for the microarchitecture.
+- **SVA ([sva](./formal/sva/)):**
+SystemVerilog files that contains the verification of the translation logic modules and modelling of input signals
 
-- **Standalone components ([vendor/](./vendor/)):**
-The *vendor* folder holds SystemVerilog source files of all standalone RTL modules used in the IOMMU IP.
-
-## **Features**
-
-The following table lists all Verification features supported by this implementation, and those that may be included in the future.
-
-| Feature | Notes | Status |
-| ------------- | ------------- | ------------- |
-| Verify Translation Logic | Translation of Virtual Address to Physical Address | Implemented |
-
+- **cut_point_assumptions ([cut_point_assumptions](./formal/sva/cut_point_assumptions/)):**
+SystemVerilog file that contains the signals that were cutpointed
 
 ## Verification Work Summary
 
@@ -66,7 +53,7 @@ The following components and functionalities were covered as part of the formal 
 
 - **Properties for CDW**
   - Wrote properties to verify the accurate reporting of error messages during device directory walk(DDT) and process directory walk(PDT).
-  
+
 ## Roadmap
 
 Planned extensions and improvements to this formal verification environment include:
