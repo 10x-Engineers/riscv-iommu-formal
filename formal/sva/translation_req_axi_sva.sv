@@ -1,3 +1,15 @@
+// Copyright © 2025 Muhammad Hayat, 10xEngineers.
+
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+// http://www.apache.org/licenses/LICENSE-2.0
+
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and limitations under the License.
+
 module tr_req_if #(
     parameter type axi_req_iommu_t = lint_wrapper::req_iommu_t ,
     parameter type axi_rsp_t = lint_wrapper::resp_t
@@ -7,9 +19,6 @@ module tr_req_if #(
     input  axi_req_iommu_t  dev_tr_req_i,
     input  axi_rsp_t        dev_tr_resp_o
 );
-
-    default clocking @(posedge clk_i); endclocking
-    default disable iff (~rst_ni);
 
 `include "fifo.sv"
 // write data channel macros
@@ -35,6 +44,9 @@ module tr_req_if #(
 localparam DATA_WIDTH_in_bytes = lint_wrapper::DataWidth / 8;
 // TODO: instead of macro use parameter
 `define log_2_width_bytes $clog2(DATA_WIDTH_in_bytes)
+
+default clocking @(posedge clk_i); endclocking
+default disable iff (~rst_ni);
 
 // Handshake of all 5 channels
 logic ar_hsk, aw_hsk, w_hsk, b_hsk, r_hsk;
@@ -62,7 +74,7 @@ always @(posedge clk_i or negedge rst_ni) begin
         no_outstanding_axi_txn_reg <= 1;
 end
 
-assign capture_addr = no_outstanding_axi_txn ? `aw_addr : fifo_addr;
+assign capture_addr = no_outstanding_axi_txn ? dev_tr_req_i.aw.addr : fifo_addr;
 assign capture_size = no_outstanding_axi_txn ? dev_tr_req_i.aw.size : fifo_size;
 assign capture_len  = no_outstanding_axi_txn ? dev_tr_req_i.aw.len  : fifo_len;
 assign capture_id   = no_outstanding_axi_txn ? dev_tr_req_i.aw.id   : fifo_id;
@@ -71,7 +83,8 @@ assign capture_id   = no_outstanding_axi_txn ? dev_tr_req_i.aw.id   : fifo_id;
 logic empty_len, empty_addr, empty_size, empty_id;
 // tracking fifo's full status
 full_len, full_addr, full_size, full_id;
-logic push, pop; // push and pop signals of fifo
+// push and pop signals of fifo
+logic push, pop;
 
 logic combined_empty, combined_full;
 assign combined_empty = empty_addr && empty_size && empty_len && empty_id;
@@ -80,6 +93,7 @@ assign combined_full  = full_addr && full_size && full_len && full_id;
 assign push = aw_hsk && !combined_full && !(aw_hsk && w_hsk && combined_empty && counter_wlast == 0);
 assign pop  = w_hsk && dev_tr_req_i.w.last && !combined_empty;
 
+// TODO: Replace multiple FIFOs with a single FIFO that stores a structured data type containing the address, size, length, and ID fields.
 fifo #(.DEPTH_BITS(3),.DATA_WIDTH(64)) fifo_addr_m  (clk_i, rst_ni, push, pop, `aw_addr, empty_addr, full_addr, fifo_addr);
 fifo #(.DEPTH_BITS(3),.DATA_WIDTH(3))  fifo_size_m  (clk_i, rst_ni, push, pop, dev_tr_req_i.aw.size, empty_size, full_size, fifo_size);
 fifo #(.DEPTH_BITS(3),.DATA_WIDTH(8))  fifo_len_m   (clk_i, rst_ni, push, pop, dev_tr_req_i.aw.len, empty_len, full_len, fifo_len);
@@ -162,8 +176,7 @@ always @(posedge clk_i or negedge rst_ni) begin
     else if (w_hsk)
         counter_unalign_addrs <= counter_unalign_addrs + 2**capture_size;
 end
-assmp_unaligned_other_cycle_strb:
-assume property (!addrs_aligned && unaligned_follow_beat && `w_valid |-> `strb[counter_unalign_addrs]);
+assmp_unaligned_other_cycle_strb: assume property (!addrs_aligned && unaligned_follow_beat && `w_valid |-> `strb[counter_unalign_addrs]);
 
 /////////////////////////////Valid Ready Properties///////////////////////////////////////
 
@@ -187,21 +200,18 @@ assmp_ar_channel_valid_stable: assume property(valid_stable(dev_tr_req_i.ar_vali
 
 // If valid is high and ready is low then the valid must be stable
 assmp_ar_valid_stable: assume property(valid_stable(dev_tr_req_i.ar_valid, dev_tr_resp_o.ar_ready, dev_tr_req_i.ar_valid));
+
 // If valid is high and ready is low then read data channel must be stable
-r_channel_stable:
-assert property(valid_stable(dev_tr_resp_o.r_valid, dev_tr_req_i.r_ready, dev_tr_resp_o.r));
+assert_r_channel_stable: assert property(valid_stable(dev_tr_resp_o.r_valid, dev_tr_req_i.r_ready, dev_tr_resp_o.r));
 
 // If valid is high and ready is low then read data valid must be stable
-r_channel_stable_valid:
-assert property(valid_stable(dev_tr_resp_o.r_valid, dev_tr_req_i.r_ready, dev_tr_resp_o.r_valid));
+assert_r_channel_stable_valid: assert property(valid_stable(dev_tr_resp_o.r_valid, dev_tr_req_i.r_ready, dev_tr_resp_o.r_valid));
 
 // If valid is high and ready is low then write response valid must be stable
-b_channel_stable_valid:
-assert property(valid_stable(dev_tr_resp_o.b_valid, dev_tr_req_i.b_ready, dev_tr_resp_o.b_valid));
+assert_b_channel_stable_valid: assert property(valid_stable(dev_tr_resp_o.b_valid, dev_tr_req_i.b_ready, dev_tr_resp_o.b_valid));
 
 // If valid is high and ready is low then write response channel must be stable
-b_channel_stable:
-assert property(valid_stable(dev_tr_resp_o.b_valid, dev_tr_req_i.b_ready, dev_tr_resp_o.b));
+assert_b_channel_stable: assert property(valid_stable(dev_tr_resp_o.b_valid, dev_tr_req_i.b_ready, dev_tr_resp_o.b));
 
 
 
@@ -211,7 +221,7 @@ assert property(valid_stable(dev_tr_resp_o.b_valid, dev_tr_req_i.b_ready, dev_tr
 assmp_wlast: assume property ((counter_wlast == capture_len) && `w_valid |-> dev_tr_req_i.w.last);
 
 // WLAST signal must not be asserted if it isn't driving the final write transfer in the burst
-assmp_wlast: assume property (!(counter_wlast == capture_len && `w_valid) |-> !dev_tr_req_i.w.last);
+assmp_not_wlast: assume property (!(counter_wlast == capture_len && `w_valid) |-> !dev_tr_req_i.w.last);
 
 // write data valid must not be asserted before address write channel valid
 assmp_wvalid_dependency: assume property (id_seen == 0 |-> !dev_tr_req_i.w_valid);
@@ -240,7 +250,7 @@ assmp_follow_beat_strb: assume property (unaligned_follow_beat |-> ($countones(`
 // strb bits should be consecutive if transfer data size is 2 bytes
 generate
 for (genvar i = 0; i < lint_wrapper::StrbWidth - 1; i = i + 2) begin:size_2
-    assmp_consectuve_strb: assume property (capture_size == 1 && `strb[i] |-> `strb[i+1]);
+    assmp_consectuve_strb_size2: assume property (capture_size == 1 && `strb[i] |-> `strb[i+1]);
 end
 endgenerate
 
@@ -249,48 +259,42 @@ endgenerate
 generate
 for (genvar i = 0; i < lint_wrapper::StrbWidth - 1; i = i + 4) begin:size_4
     if(i==0)
-    assmp_consectuve_strb: assume property (capture_size == 2 && `strb[i] |-> `strb == 8'b00001111);
+    assmp_consectuve_strb_size4: assume property (capture_size == 2 && `strb[i] |-> `strb == 8'b00001111);
     else
-    assmp_consectuve_strb: assume property (capture_size == 2 && `strb[i] |-> `strb == 8'b11110000);
+    assmp_consectuve_strb_size4: assume property (capture_size == 2 && `strb[i] |-> `strb == 8'b11110000);
 end
 endgenerate
 // strb bits should be consecutive if transfer data size is 8 bytes
 generate
 for (genvar i = 0; i < lint_wrapper::StrbWidth - 1; i = i + 8) begin:size_8
-    assmp_consectuve_strb: assume property (capture_size == 3 && `strb[i] |-> `strb == 8'b11111111);
+    assmp_consectuve_strb_size8: assume property (capture_size == 3 && `strb[i] |-> `strb == 8'b11111111);
 end
 endgenerate
 
- // Select the starting strb bit for first beat transfer
+// Select the starting strb bit for first beat transfer
 assmp_starting_strb: assume property (`w_valid && !first_cycle_txn_done |-> `strb[capture_addr[`log_2_width_bytes-1:0]]);
 
- // Select the starting strb bit for first beat transfer
+// Select the starting strb bit for first beat transfer
 assmp_aligned_follow_cycles_strb: assume property (addrs_aligned && first_cycle_txn_done && `w_valid |-> `strb[counter_align_addrs]);
 
+// Set lower bits of strb low for size = 3 starting from address last 3 bits in 64b address case
 generate
-for (genvar i = 1; i < lint_wrapper::StrbWidth - 1; i++ ) // this block will set lower bits of strb low for size = 3 starting from address last 3 bits in 64b address case
-    assmp_8byte_unalig_strb: assume property (unaligned_first_beat && (i < addr_last_3_bits) && (capture_size == 3) |-> !`strb[i]);
+for (genvar i = 1; i < lint_wrapper::StrbWidth - 1; i++ )
+    assmp_8byte_unalig_strb_lower: assume property (unaligned_first_beat && (i < addr_last_3_bits) && (capture_size == 3) |-> !`strb[i]);
 endgenerate
 
+// Set Upper bits of strb high for size = 3 starting from address last 3 bits in 64b address case
 generate
-for (genvar i = 1; i < lint_wrapper::StrbWidth; i++ ) // this block will set Upper bits of strb high for size = 3 starting from address last 3 bits in 64b address case
-    assmp_8byte_unalig_strb: assume property (unaligned_first_beat && (i >= addr_last_3_bits) && (capture_size == 3) |-> `strb[i]);
+for (genvar i = 1; i < lint_wrapper::StrbWidth; i++ )
+    assmp_8byte_unalig_strb_upper: assume property (unaligned_first_beat && (i >= addr_last_3_bits) && (capture_size == 3) |-> `strb[i]);
 endgenerate
 
-generate // this block will set all other bits of strb 0, only the strb[address[2:0]:0] bit will be high
+// Set all other bits of strb 0, only the strb[address[2:0]:0] bit will be high
+generate
 for (genvar i = 0; i < lint_wrapper::StrbWidth ; i++)
     for (genvar j = 0; j < lint_wrapper::StrbWidth ; j++)
         if(i != j && (i % 2 != 0)) // checks should be on unaligned address
             assmp_2byte_unalig_strb: assume property (capture_size == 1 && unaligned_first_beat && `strb[i] |-> !`strb[j]);
-endgenerate
-
-// TODO: Remove the condition (i != 2) from the generate block once "oc_size_2" is removed.
-// address must be alligend if burst is wrap
-generate
-for (genvar i = 0; i <= `log_2_width_bytes ; i++) begin
-    if (i!=2)
-        oc_alligned_access_wrap: assume property (dev_tr_req_i.aw_valid && (dev_tr_req_i.aw.size == i) && (dev_tr_req_i.aw.burst == axi_pkg::BURST_WRAP) |-> ((`aw_addr % (2**i)) == 0));
-end
 endgenerate
 
 // burst == 2'b11 is reserved
@@ -350,7 +354,7 @@ oc_addr_not_equal_symbolic_id: assume property (aw_symbolic_sampled |-> (`aw_add
 assmp_resp_counter_not_zero: assume property (resp_counter == 15 |->  resp_decr || !resp_incr);
 
 // write_resp_hsk must not come more than the total number of aw_hsk
-assrt_bhsk_not_more_than_awhsk: assert property (dev_tr_resp_o.b_valid && symbolic_id == `bid |-> resp_counter > 1);
+assert_bhsk_not_more_than_awhsk: assert property (dev_tr_resp_o.b_valid && symbolic_id == `bid |-> resp_counter > 1);
 
 
 ///////////////////////////read channel started/////////////////////////////////////////////
@@ -418,7 +422,7 @@ always @(posedge clk_i or negedge rst_ni)
 logic must_read;
 assign must_read = (read_counter == 1) && (symbolic_id == `rid) && r_hsk && !read_first_cycle_tr_done && read_addr_seen;
 
-assrt_1st_tr_data_integrity: assert property ( must_read |-> dev_tr_resp_o.r.data == wdata_captured);
+assert_1st_tr_data_integrity: assert property ( must_read |-> dev_tr_resp_o.r.data == wdata_captured);
 
 // auxilary code to verify that r_valid should come after ar_valid and ar_ready
 int rvalid_counter;
@@ -434,7 +438,7 @@ always @(posedge clk_i or negedge rst_ni)
         rvalid_counter <= rvalid_counter + rvalid_cnt_incr - rvalid_cnt_decr;
 
 // r_valid mustn't come before ar_hsk
-assrt_rvalid_depend: assert property (dev_tr_resp_o.r_valid |-> rvalid_counter > 1);
+assert_rvalid_depend: assert property (dev_tr_resp_o.r_valid |-> rvalid_counter > 1);
 
 
 //////////////////////////////////Overconstraints//////////////////////////////////
@@ -447,4 +451,13 @@ endgenerate
 
 // size can't be 2
 oc_size_2: assume property (`awsize != 2);
+
+// TODO: Remove the condition (i != 2) from the generate block once "oc_size_2" is removed.
+// address must be alligend if burst is wrap
+generate
+for (genvar i = 0; i <= `log_2_width_bytes ; i++) begin
+    if (i!=2)
+        oc_alligned_access_wrap: assume property (dev_tr_req_i.aw_valid && (dev_tr_req_i.aw.size == i) && (dev_tr_req_i.aw.burst == axi_pkg::BURST_WRAP) |-> ((`aw_addr % (2**i)) == 0));
+end
+endgenerate
 endmodule

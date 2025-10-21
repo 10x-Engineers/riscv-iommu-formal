@@ -1,4 +1,14 @@
+// Copyright © 2025 Muhammad Hayat, 10xEngineers.
 
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+// http://www.apache.org/licenses/LICENSE-2.0
+
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and limitations under the License.
 
 `define ar_addr dev_tr_req_i.ar.addr
 `define aw_addr dev_tr_req_i.aw.addr
@@ -190,27 +200,27 @@ end
 
 //----------------------------- Assertion CDW Started----------------------------------------
 
-assrt_1_ddt_entry_valid_for_level_1: // if ddte.v = 0, then cause must be DDT_ENTRY_INVALID
+assert_ddt_entry_valid_for_level_1: // if ddte.v = 0, then cause must be DDT_ENTRY_INVALID
 assert property (ddt_entry_invalid_captured && last_beat_cdw |-> riscv_iommu.trans_error && riscv_iommu.cause_code == rv_iommu::DDT_ENTRY_INVALID );
 
-assert_2_ddt_data_corruption: // if resp!=ok then cause must be ddt_data_corruption
+assert_ddt_data_corruption: // if resp!=ok then cause must be ddt_data_corruption
 assert property (ddt_data_corruption_captured && last_beat_cdw |-> riscv_iommu.trans_error && riscv_iommu.cause_code == rv_iommu::DDT_DATA_CORRUPTION);
 
-assrt_3_ddt_misconfigured_non_leaf: // if reseerved bits of ddte are set high then cause must be ddt_entry_misconfigured
+assert_ddt_misconfigured_non_leaf: // if reseerved bits of ddte are set high then cause must be ddt_entry_misconfigured
 assert property (ready_to_capture_ddte_misconfig_rsrv_bits && last_beat_cdw |=> riscv_iommu.trans_error && riscv_iommu.cause_code == rv_iommu::DDT_ENTRY_MISCONFIGURED);
 
-assrt_4_did_length_wider: // if did length higher bits are set to 1 then cause must be TRANS_TYPE_DISALLOWED
+assert_did_length_wider: // if did length higher bits are set to 1 then cause must be TRANS_TYPE_DISALLOWED
 assume property (ar_did_wider || aw_did_wider |-> riscv_iommu.trans_error && riscv_iommu.cause_code == rv_iommu::TRANS_TYPE_DISALLOWED);
 
-assrt_5_ddtp_mode_off: // if mode is bare then cause must be ALL_INB_TRANSACTION_DISALLOWED
+assert_ddtp_mode_off: // if mode is bare then cause must be ALL_INB_TRANSACTION_DISALLOWED
 assume property (riscv_iommu.ddtp.iommu_mode.q == 0 && aw_or_ar_hsk |-> riscv_iommu.trans_error && riscv_iommu.cause_code == rv_iommu::ALL_INB_TRANSACTIONS_DISALLOWED );
 
 generate
 for (genvar i = 0; i < riscv::PLEN; i++) begin
-assrt_6_ddtp_mode_1_ar: // if mode is bare, then the input address is equal to the physical address
+assert_ddtp_mode_1_ar: // if mode is bare, then the input address is equal to the physical address
 assume property (riscv_iommu.ddtp.iommu_mode.q == 1 && translation_req.ar_hsk |-> `ar_addr[i] == riscv_iommu.spaddr[i]);
 
-assrt_7_ddtp_mode_1_aw: // if mode is bare, then the input address is equal to the physical address
+assert_ddtp_mode_1_aw: // if mode is bare, then the input address is equal to the physical address
 assume property (riscv_iommu.ddtp.iommu_mode.q == 1 && translation_req.aw_hsk |-> `aw_addr[i] == riscv_iommu.spaddr[i]);
 end
 endgenerate
@@ -218,64 +228,64 @@ endgenerate
 
 // need to set last 5 bit to 0 as wihotut base dc is 128 bit wide
     // assrt_ddt_level1 is failing
-    // assrt_9_ddt_level1_addr: // on read address
+    // assert_ddt_level1_addr: // on read address
     // assert property ($rose(riscv_iommu.ddt_walk) && riscv_iommu.ddtp.iommu_mode.q == 2 && ds_req_o.ar.id == 1 |-> ds_req_o.ar_valid && ds_req_o.ar.addr ==  (riscv_iommu.ddtp.ppn + (selected_did[6:0] * 8)));
 
-    // assrt_10_ddt_level1_len: // on read address
+    // assert0_ddt_level1_len: // on read address
     // assert property ($rose(riscv_iommu.ddt_walk) && riscv_iommu.ddtp.iommu_mode.q == 2 && ds_req_o.ar.id == 1 |-> ds_req_o.ar_valid && ds_req_o.ar.len == 3);
 
-    // assrt_11_ddt_level2_len: // on read address
+    // assert1_ddt_level2_len: // on read address
     // assert property ($rose(riscv_iommu.ddt_walk) && riscv_iommu.ddtp.iommu_mode.q == 3 && ds_req_o.ar.id == 1 |-> ds_req_o.ar_valid && ds_req_o.ar.len == 0);
 
-    // assrt_12_ddt_level2_addr: // on read address
+    // assert2_ddt_level2_addr: // on read address
     // assert property ($rose(riscv_iommu.ddt_walk) && riscv_iommu.ddtp.iommu_mode.q == 3 && ds_req_o.ar.id == 1 |-> ds_req_o.ar_valid && ds_req_o.ar.addr ==  (riscv_iommu.ddtp.ppn + (selected_did[15:7] * 8)));
 
-assrt_13_ddt_data_corruption:
+assert3_ddt_data_corruption:
 assert property (dc_data_corruption_captured && last_beat_cdw |->  riscv_iommu.cause_code == rv_iommu::DDT_DATA_CORRUPTION);
 
-assrt_14_dc_tc_not_valid:
+assert4_dc_tc_not_valid:
 assert property (wo_data_corruption && dc_tc_not_valid_captured && last_beat_cdw |-> riscv_iommu.cause_code == rv_iommu::DDT_ENTRY_INVALID);
 
-assrt_15_dc_misconfig:
+assert5_dc_misconfig:
 assert property (wo_data_corruption && dc_misconfig_captured && last_beat_cdw |=> riscv_iommu.cause_code == rv_iommu::DDT_ENTRY_MISCONFIGURED);
 
-assrt_16_dc_misconfig_wo_pc:
+assert6_dc_misconfig_wo_pc:
 assert property (iosatp_invalid |=> riscv_iommu.cause_code == rv_iommu::DDT_ENTRY_MISCONFIGURED );
 
 logic not_ddte;
 assign not_ddte = ddtp.iommu_mode.q == 2 || ((counter_non_leaf == 2 && ddtp.iommu_mode.q == 4) || (counter_non_leaf == 1 && ddtp.iommu_mode.q == 3));
 
-assrt_17_dc_misconfig_wo_pc:
+assert7_dc_misconfig_wo_pc:
 assert property (riscv_iommu.cause_code == rv_iommu::DDT_ENTRY_MISCONFIGURED && $past(not_ddte) |=> iosatp_invalid || ((dc_misconfig_captured || ready_to_capture_ddte_misconfig_rsrv_bits) && last_beat_cdw));
 
-assrt_18_ddt_walk: // if data is not present, there will be ddt_walk
+assert8_ddt_walk: // if data is not present, there will be ddt_walk
 assert property ($rose(ddtc_miss_q) |=> riscv_iommu.ddt_walk);
 
-assrt_19_ddt_walk:
+assert9_ddt_walk:
 assert property (riscv_iommu.ddt_walk |-> $past(ddtc_miss_q));
 
-assrt_20_ddt_walk_off: // if data is present, there will be no ddt_walk
+assert0_ddt_walk_off: // if data is present, there will be no ddt_walk
 assert property ($rose(ddtc_hit_q) |=> !riscv_iommu.ddt_walk);
 
 logic wo_data_corruption;
 assign wo_data_corruption = !dc_with_data_corruption_captured && !dc_with_data_corruption;
 
-assrt_21_pdtv_zero: // if did length higher bits are set to 1 then cause must be TRANS_TYPE_DISALLOWED
+assert1_pdtv_zero: // if did length higher bits are set to 1 then cause must be TRANS_TYPE_DISALLOWED
 assert property (wo_data_corruption && pdtv_zero_captured && last_beat_cdw |-> riscv_iommu.trans_error && riscv_iommu.cause_code == rv_iommu::TRANS_TYPE_DISALLOWED);
 
-assrt_22_error_and_valid_both_high:
+assert2_error_and_valid_both_high:
 assert property (!(riscv_iommu.trans_error && riscv_iommu.trans_valid));
 
-assrt_26_type_disallow_error:
+assert6_type_disallow_error:
 assert property (ready_to_capt_valid_type_disalow && last_beat_cdw |-> riscv_iommu.trans_error);
 
-assrt_27_type_disallow_error:
+assert7_type_disallow_error:
 assert property (ready_to_capt_valid_type_disalow && last_beat_cdw |-> riscv_iommu.cause_code == rv_iommu::TRANS_TYPE_DISALLOWED);
 
-// assrt_26_type_disallow_error:
+// assert6_type_disallow_error:
 // assert property (ready_to_capt_trans_type_disallow && last_beat_cdw |-> riscv_iommu.trans_error);
 
-// assrt_27_type_disallow_cause_code:
+// assert7_type_disallow_cause_code:
 // assert property (ready_to_capt_trans_type_disallow && last_beat_cdw |-> riscv_iommu.cause_code == rv_iommu::TRANS_TYPE_DISALLOWED);
 //----------------------------- Assertion CDW Ended----------------------------------------
 
@@ -542,10 +552,10 @@ always @(posedge clk_i or negedge rst_ni)
         pdte_not_valid_captured    <= pdte_not_valid_captured || ready_to_capt_pdte_not_valid;
     end
 
-assrt_23_pdte_not_valid:
+assert3_pdte_not_valid:
 assert property (ready_to_capt_pdte_not_valid |=> riscv_iommu.trans_error && riscv_iommu.cause_code == rv_iommu::PDT_ENTRY_INVALID);
 
-assrt_24_pdte_misconfig:
+assert4_pdte_misconfig:
 assert property (ready_to_capt_pdte_misconfig |=> riscv_iommu.trans_error && riscv_iommu.cause_code == rv_iommu::PDT_ENTRY_MISCONFIGURED);
 //----------------------------Process directory checks Ended--------------------------------
 
@@ -615,22 +625,22 @@ end
 cover_13_both_stages:
 cover property ((pte_active && riscv_iommu.i_rv_iommu_translation_wrapper.i_rv_iommu_tw_sv39x4.S1_en && riscv_iommu.i_rv_iommu_translation_wrapper.i_rv_iommu_tw_sv39x4.S2_en)[*5]);
 
-assrt_5_ptw:
+assert_ptw:
 assert property (counter_PTE > 2 |-> riscv_iommu.trans_error);
 //----------------------------PTW Checks Ended-----------------------------------------------
 
 
 //----------------------------Assertions PTW Started-----------------------------------------
-// assrt_1_ptw_pg_fult:
+// assert_ptw_pg_fult:
 // assert property ($rose(pf_excep_captured) && trans_type ==  |-> riscv_iommu.cause_code == rv_iommu::STORE_PAGE_FAULT);
 
-assrt_2_ptw_pg_fault_trans_error:
+assert_ptw_pg_fault_trans_error:
 assert property ($rose(pf_excep_captured) |-> riscv_iommu.trans_error);
 
-assrt_3_ptw_corrupt:
+assert_ptw_corrupt:
 assert property ($rose(ptw_data_corrup_captured) |-> riscv_iommu.cause_code == rv_iommu::PT_DATA_CORRUPTION);
 
-assrt_4_ptw_corrupt_trans_error:
+assert_ptw_corrupt_trans_error:
 assert property ($rose(ptw_data_corrup_captured) |-> riscv_iommu.trans_error);
 
 
