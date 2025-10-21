@@ -1,6 +1,6 @@
-# RISCV IOMMU FORMAL
+# RISC0-V IOMMU FORMAL
 
-This repository contains the **formal verification environment** for the [RISC-V IOMMU](https://github.com/zero-day-labs/riscv-iommu) design.
+This repository contains the formal verification environment for the [Zero Day Labs RISC-V IOMMU](https://github.com/zero-day-labs/riscv-iommu) design.
 
 
 ## License
@@ -20,20 +20,18 @@ This work is licensed under the Apache-2.0. See [LICENSE](./LICENSE) file for de
 
 ## Introduction
 
-The RISC-V IOMMU architecture consists of two primary components:
+The RISC-V IOMMU architecture consists of three primary components:
 
-1. **Address Translation Unit (ATU)** – Handles the translation of I/O virtual addresses (IOVA) to physical addresses based on the RISC-V IOMMU specification.  
-2. **Software Interface Unit (SIU)** – Provides the configuration and control interface for system software to manage the IOMMU.
+1. Translation Logic modules, which play a crucial role in the address translation process, enabling access to memory to locate data structures or caching context/translation data;
+2. External interfaces, used by the IOMMU to interact with other hardware subsystems within the platform. 
+3. Software interface modules, responsible for creating communication channels between the IOMMU hardware and software for specific purposes;
 
-In this verification effort, the **focus is on the Address Translation Unit (ATU)**.  
-The Software Interface Unit (SIU) is **black-boxed**, allowing the formal verification environment to concentrate on the correctness, consistency, and completeness of the translation logic.
+In this verification effort, the focus is on the **Translation Logic modules and External Interfaces**.  
+The Software interface is **black-boxed**, allowing the formal verification environment to concentrate on the correctness, consistency, and completeness of the translation logic.
 
 The verification setup is built using **SystemVerilog Assertions (SVA)** and **Cadence JasperGold**, including a comprehensive set of assumptions, constraints, and cover properties to ensure exhaustive verification of translation behavior.
 
 ## **Repository Structure**
-
-- **Documentation ([doc/](./doc/)):**
-In the *doc* folder you can find various diagrams and graphical resources illustrating the internal design of the different components comprising the IOMMU IP.
 
 - **Required SV headers ([include/](./include/)):**
 SystemVerilog header files required to build the IP.
@@ -60,30 +58,18 @@ The following table lists all Verification features supported by this implementa
 
 The following components and functionalities were covered as part of the formal verification process:
 
-- **Configuration**
-  - Verification of register-level configurations and initialization sequences.
-  - Ensured proper setup and access control for translation structures.
-
 - **AXI Modeling for Interfaces**
-  - Created formal AXI interface models for master/slave communication.
   - Modeled read/write transactions and response behavior for formal checks.
 
 - **Verification of Caches (DDTC / PDTC)**
-  - Verified data and page directory translation caches.
-  - Checked cache entry allocation, eviction, and consistency properties.
+  - Verified insertion, invalidation, lookup, and replacement logic of device/process directory translation caches.
 
-- **Properties for CDW (Command/Data Write)**
-  - Ensured correct ordering and completion of CDW operations.  
-  - Verified command-data dependency and protocol compliance.
-
+- **Properties for CDW**
+  - Wrote properties to verify the accurate reporting of error messages during device directory walk(DDT) and process directory walk(PDT).
+  
 ## Roadmap
 
 Planned extensions and improvements to this formal verification environment include:
 
-- [ ] **Integration of Software Interface Unit (SIU)** into the formal environment.  
-- [ ] **Coverage closure** for remaining translation corner cases.  
-- [ ] **Cross-check with simulation results** for mixed formal-simulation validation.  
-- [ ] **Enhanced AXI protocol coverage** including burst and error scenarios.  
-- [ ] **Automation scripts** for running proof, cover, and vacuity checks.  
-- [ ] **Documentation and test plan publication** for reproducibility and review.
+- [ ] **
 
