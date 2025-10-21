@@ -48,8 +48,8 @@ The following components and functionalities were covered as part of the formal 
 - **AXI Modeling for Interfaces**
   - Modeled read/write transactions and response behavior for formal checks.
 
-- **Verification of Caches (DDTC / PDTC)**
-  - Verified insertion, invalidation, lookup, and replacement logic of device/process directory translation caches.
+- **Cache Verification (DDTC / PDTC / IOTLB)**
+  - Verified insertion, invalidation, lookup, and replacement logic of IOMMU Address Translation Cache(IOATC).
 
 - **Properties for CDW**
   - Wrote properties to verify the accurate reporting of error messages during device directory walk(DDT) and process directory walk(PDT).
