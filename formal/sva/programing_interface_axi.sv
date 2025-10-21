@@ -308,147 +308,141 @@ assmp_awsize: assume property (prog_req_i.aw.size <= `log_2_width_bytes);
 /////////////////////////////Assumptions Ended///////////////////////////////////////
 
 
-//------------------------response channel started------------------------------------------
-    logic [lint_wrapper::AddrWidth - 1:0] symbolic_addr;
-    logic [lint_wrapper::IdWidthSlv - 1:0] symbolic_id;
+//////////////////////////////////write response channel properties//////////////////////
+logic [lint_wrapper::AddrWidth - 1:0] symbolic_addr;
+logic [lint_wrapper::IdWidthSlv - 1:0] symbolic_id;
 
-    assmp_stable_addr:
-    assume property($stable(symbolic_addr));
+assmp_stable_addr: assume property($stable(symbolic_addr));
 
-    assmp_aligned_addr: // remove this assumption later as we are now checking only with size == 3 and aligned address
-    assume property (symbolic_addr % 8 == 0);
+// TODO: remove this assumption later as we are now checking only with size == 3
+oc_aligned_addr: assume property (symbolic_addr % 8 == 0);
 
-    assmp_stable_id:
-    assume property($stable(symbolic_id));
+assmp_stable_id: assume property($stable(symbolic_id));
 
-    logic [3:0] resp_counter;
-    logic resp_incr, resp_decr;
+logic [3:0] resp_counter;
+logic resp_incr, resp_decr;
 
-    assign resp_incr = aw_hsk && symbolic_id == `awid && !aw_symbolic_sampled; // incr with only one symbolic id and freeze the incr when aw_symbolic_sampled is seen
-    assign resp_decr = b_hsk  && symbolic_id == `bid; // decrement with only one symbolic id
+// incr with only symbolic id and freeze the incr when aw_symbolic_sampled is seen
+assign resp_incr = aw_hsk && symbolic_id == `awid && !aw_symbolic_sampled;
+// decrement with only one symbolic id
+assign resp_decr = b_hsk  && symbolic_id == `bid;
 
-    always @(posedge clk_i or negedge rst_ni)
-        if(!rst_ni)
-            resp_counter <= 1;
-        else
-            resp_counter <= resp_counter + resp_incr - resp_decr;
+always @(posedge clk_i or negedge rst_ni)
+    if(!rst_ni)
+        resp_counter <= 1;
+    else
+        resp_counter <= resp_counter + resp_incr - resp_decr;
 
-    logic ready_to_sample_aw_symbolic, aw_symbolic_sampled;
+logic ready_to_sample_aw_symbolic, aw_symbolic_sampled;
 
-    // for simple awsize==3 and aligned address
-    assign ready_to_sample_aw_symbolic = aw_hsk && (`awsize == 3) && (symbolic_addr == `aw_addr) && (symbolic_id == `awid) && !aw_symbolic_sampled;
+// TODO: Write the logic when awsize!=3
+assign ready_to_sample_aw_symbolic = aw_hsk && (`awsize == 3) && (symbolic_addr == `aw_addr) && (symbolic_id == `awid) && !aw_symbolic_sampled;
 
-    always @(posedge clk_i or negedge rst_ni)
-        if(!rst_ni)
-            aw_symbolic_sampled <= 0;
-        else
-            aw_symbolic_sampled <= ready_to_sample_aw_symbolic || aw_symbolic_sampled;
+always @(posedge clk_i or negedge rst_ni)
+    if(!rst_ni)
+        aw_symbolic_sampled <= 0;
+    else
+        aw_symbolic_sampled <= ready_to_sample_aw_symbolic || aw_symbolic_sampled;
 
-    assmp_id_not_equal_symbolic_id: //  id can't be equal to symbolic id, if symbolic id is seen once
-    assume property (aw_symbolic_sampled |-> `awid != symbolic_id);
+// TODO: AWID doesn't need to be unique
+oc_id_not_equal_symbolic_id: assume property (aw_symbolic_sampled |-> `awid != symbolic_id);
 
-    assmp_addr_not_equal_symbolic_id: // aw_address can't be equal to symbolic address, if symbolic addr is seen once
-    assume property (aw_symbolic_sampled |-> !prog_req_i.aw_valid || (`aw_addr + (2**`awsize * (`awlen + 1))) < symbolic_addr);
+// TODO: Remove this assumption after verifying the intent of it
+oc_addr_not_equal_symbolic_id: assume property (aw_symbolic_sampled |-> !prog_req_i.aw_valid || (`aw_addr + (2**`awsize * (`awlen + 1))) < symbolic_addr);
 
-    assmp_resp_counter_not_zero: // this assumption make sure that the aw_hsk wihtout b_hsk shouldn't exceed the total 14 time(can increase or decrease that counter according to our will).
-    assume property (resp_counter == 15 |->  resp_decr || !resp_incr); // will force that resp_incr will not come when resp_counter == 15
+// The number of outstanding address write requests must not exceed 14(this limit can be adjusted as needed).
+assmp_resp_counter_not_zero: assume property (resp_counter == 15 |->  resp_decr || !resp_incr); // will force that resp_incr will not come when resp_counter == 15
 
-    assert_bhsk_not_more_than_awhsk: // write_resp_hsk must not come more than the total number of aw_hsk
-    assert property (prog_resp_o.b_valid && symbolic_id == `bid |-> resp_counter > 1);
-
-//------------------------response channel Ended--------------------------------------------
-
-//----------------------------------------------data read from symbolic addres Started------
-    logic ready_to_see_bresp_of_symbolic, bresp_of_symbolic_seen;
-    assign ready_to_see_bresp_of_symbolic = ((ready_to_sample_aw_symbolic && resp_counter == 1 && b_hsk) || (aw_symbolic_sampled && resp_counter == 2 && b_hsk) && !bresp_of_symbolic_seen);
-
-    always @(posedge clk_i or negedge rst_ni)
-        if(!rst_ni)
-            bresp_of_symbolic_seen <= 0;
-        else
-            bresp_of_symbolic_seen <= ready_to_see_bresp_of_symbolic || bresp_of_symbolic_seen;
-
-    logic ready_to_see_read_addr, read_addr_seen;
-
-    assign ready_to_see_read_addr = (`arsize == 3) && `arid == symbolic_id && (`ar_addr == symbolic_addr) && ar_hsk && bresp_of_symbolic_seen && aw_symbolic_sampled && !read_addr_seen;
-    always @(posedge clk_i or negedge rst_ni)
-        if(!rst_ni)
-            read_addr_seen <= 0;
-        else
-            read_addr_seen <= ready_to_see_read_addr || read_addr_seen;
-
-    logic ready_to_capture_w_data;
-    assign ready_to_capture_w_data = (capture_addr == symbolic_addr) && (capture_id == symbolic_id) && w_hsk && (aw_symbolic_sampled || ready_to_sample_aw_symbolic);
-
-    logic [lint_wrapper::DataWidth-1 : 0] wdata_captured;
-    always @(posedge clk_i or negedge rst_ni)
-        if(!rst_ni)
-            wdata_captured <= 0;
-        else if(ready_to_capture_w_data && !first_cycle_txn_done)
-            wdata_captured <= `w_data;
+// write_resp_hsk must not come more than the total number of aw_hsk
+assert_bhsk_not_more_than_awhsk: assert property (prog_resp_o.b_valid && symbolic_id == `bid |-> resp_counter > 1);
 
 
-    logic read_incr, read_decr;
-    int read_counter;
+///////////////////////////read channel started/////////////////////////////////////////////
 
-    assign read_incr = ar_hsk && (symbolic_id == `arid) && !read_addr_seen && !capability_addr_seen;
-    assign read_decr = r_hsk && `rlast && (symbolic_id == `rid) && !read_data_seen;
+// TODO: Read channel implementation should be independent of Write channels
 
-    always @(posedge clk_i or negedge rst_ni)
-        if(!rst_ni)
-            read_counter <= 0;
-        else
-            read_counter = read_counter + read_incr - read_decr;
+logic ready_to_see_bresp_of_symbolic, bresp_of_symbolic_seen;
+assign ready_to_see_bresp_of_symbolic = ((ready_to_sample_aw_symbolic && resp_counter == 1 && b_hsk) || (aw_symbolic_sampled && resp_counter == 2 && b_hsk) && !bresp_of_symbolic_seen);
 
-    logic ready_to_see_data, read_data_seen;
-    assign ready_to_see_data = (read_counter == 1) && read_decr && read_addr_seen; // to stop the read_decr for further asserting
+always @(posedge clk_i or negedge rst_ni)
+    if(!rst_ni)
+        bresp_of_symbolic_seen <= 0;
+    else
+        bresp_of_symbolic_seen <= ready_to_see_bresp_of_symbolic || bresp_of_symbolic_seen;
 
-    always @(posedge clk_i or negedge rst_ni)
-        if(!rst_ni)
-            read_data_seen <= 0;
-        else
-            read_data_seen <= ready_to_see_data || read_data_seen;
+logic ready_to_see_read_addr, read_addr_seen;
+// TODO: Remove the arsize==3
+assign ready_to_see_read_addr = (`arsize == 3) && `arid == symbolic_id && (`ar_addr == symbolic_addr) && ar_hsk && bresp_of_symbolic_seen && aw_symbolic_sampled && !read_addr_seen;
 
-    logic read_first_cycle_tr_done;
-    always @(posedge clk_i or negedge rst_ni)
-        if(!rst_ni)
-            read_first_cycle_tr_done <= 0;
+always @(posedge clk_i or negedge rst_ni)
+    if(!rst_ni)
+        read_addr_seen <= 0;
+    else
+        read_addr_seen <= ready_to_see_read_addr || read_addr_seen;
 
-        else if(!read_first_cycle_tr_done && (`rid == symbolic_id) && r_hsk && prog_resp_o.r.last)
-            read_first_cycle_tr_done <= 0;
+logic ready_to_capture_w_data;
+assign ready_to_capture_w_data = (capture_addr == symbolic_addr) && (capture_id == symbolic_id) && w_hsk && (aw_symbolic_sampled || ready_to_sample_aw_symbolic);
 
-        else if(read_first_cycle_tr_done && r_hsk && (`rid == symbolic_id) && prog_resp_o.r.last)
-            read_first_cycle_tr_done <= 0;
+logic [lint_wrapper::DataWidth-1 : 0] wdata_captured;
+always @(posedge clk_i or negedge rst_ni)
+    if(!rst_ni)
+        wdata_captured <= 0;
+    else if(ready_to_capture_w_data && !first_cycle_txn_done)
+        wdata_captured <= `w_data;
 
-        else if(!read_first_cycle_tr_done && (`rid == symbolic_id) && r_hsk)
-            read_first_cycle_tr_done <= 1;
+logic read_incr, read_decr;
+int read_counter;
 
-    logic must_read;
-    assign must_read = (read_counter == 1) && (symbolic_id == `rid) && r_hsk && !read_first_cycle_tr_done && read_addr_seen;
+assign read_incr = ar_hsk && (symbolic_id == `arid) && !read_addr_seen && !capability_addr_seen;
+assign read_decr = r_hsk && `rlast && (symbolic_id == `rid) && !read_data_seen;
 
-    assert_1st_tr_data_integrity:
-    assert property (must_read |-> prog_resp_o.r.data == wdata_captured);
-//----------------------------------------------data read from symbolic addres ended---------------------------
+always @(posedge clk_i or negedge rst_ni)
+    if(!rst_ni)
+        read_counter <= 0;
+    else
+        read_counter = read_counter + read_incr - read_decr;
+
+logic ready_to_see_data, read_data_seen;
+assign ready_to_see_data = (read_counter == 1) && read_decr && read_addr_seen; // to stop the read_decr for further asserting
+
+always @(posedge clk_i or negedge rst_ni)
+    if(!rst_ni)
+        read_data_seen <= 0;
+    else
+    read_data_seen <= ready_to_see_data || read_data_seen;
+
+logic read_first_cycle_tr_done;
+always @(posedge clk_i or negedge rst_ni)
+    if(!rst_ni)
+        read_first_cycle_tr_done <= 0;
+    else if((`rid == symbolic_id) && r_hsk && prog_resp_o.r.last)
+        read_first_cycle_tr_done <= 0;
+    else if(!read_first_cycle_tr_done && (`rid == symbolic_id) && r_hsk)
+        read_first_cycle_tr_done <= 1;
+
+logic must_read;
+assign must_read = (read_counter == 1) && (symbolic_id == `rid) && r_hsk && !read_first_cycle_tr_done && read_addr_seen;
+
+assert_1st_tr_data_integrity: assert property (must_read |-> prog_resp_o.r.data == wdata_captured);
 
 
-//----------------------------------------------Aux code for r_valid dependecny Started-----------------------------------
-    // auxilary code to verify that r_valid should come after ar_valid and ar_ready
-    int rvalid_counter;
-    logic rvalid_cnt_incr, rvalid_cnt_decr;
+/////////////////////////////Aux code for r_valid dependecny//////////////////////
 
-    assign rvalid_cnt_incr = ar_hsk;
-    assign rvalid_cnt_decr = r_hsk && prog_resp_o.r.last;
+// auxilary code to verify that r_valid should come after ar_valid and ar_ready
+int rvalid_counter;
+logic rvalid_cnt_incr, rvalid_cnt_decr;
 
-    always @(posedge clk_i or negedge rst_ni)
-        if(!rst_ni)
-            rvalid_counter <= 1;
-        else
-            rvalid_counter <= rvalid_counter + rvalid_cnt_incr - rvalid_cnt_decr;
+assign rvalid_cnt_incr = ar_hsk;
+assign rvalid_cnt_decr = r_hsk && prog_resp_o.r.last;
 
-    assert_rvalid_depend: // r_valid mustn't come before ar_hsk
-    assert property (prog_resp_o.r_valid |-> rvalid_counter > 1);
+always @(posedge clk_i or negedge rst_ni)
+    if(!rst_ni)
+        rvalid_counter <= 1;
+    else
+        rvalid_counter <= rvalid_counter + rvalid_cnt_incr - rvalid_cnt_decr;
 
-//----------------------------------------------Aux code for r_valid dependecny Ended-----------------------------------
+// r_valid mustn't come before ar_hsk
+assert_rvalid_depend: assert property (prog_resp_o.r_valid |-> rvalid_counter > 1);
 
 //////////////////////////////////Overconstraints//////////////////////////////////
 

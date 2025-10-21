@@ -356,7 +356,6 @@ assmp_resp_counter_not_zero: assume property (resp_counter == 15 |->  resp_decr 
 // write_resp_hsk must not come more than the total number of aw_hsk
 assert_bhsk_not_more_than_awhsk: assert property (dev_tr_resp_o.b_valid && symbolic_id == `bid |-> resp_counter > 1);
 
-
 ///////////////////////////read channel started/////////////////////////////////////////////
 
 // TODO: Read channel implementation should be independent of Write channels

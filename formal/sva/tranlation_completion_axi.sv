@@ -165,6 +165,7 @@ assmp_not_pop_when_empty: assume property (fifo_combined_empty_r |-> !axi_ds_tr_
 // ar_ids ---> 0 == ptw, 1 == cdw, and 2 == CQ
 assmp_ids_less_than_2: assume property(axi_ds_tr_compl_i.r.id <= 2);
 
+
 ///////////////////////////////////////modelling for rlast////////////////////////
 
 logic [8:0] counter_rlast; // when there is last transfer of burst, rlast must be high

@@ -42,8 +42,5 @@ oc1_length_small: assume property (dev_tr_req_i.aw.len < 5 && dev_tr_req_i.ar.le
 // Guest translation scheme isn't supported in current TB
 oc2_fctl_to_zero: assume property(riscv_iommu.fctl.gxl==0);
 
-// Flushing of cache isn't supported in current TB
-oc3_zero_flush: assume property ((riscv_iommu.flush_ddtc==0) && (riscv_iommu.flush_pdtc==0) && (riscv_iommu.flush_vma==0) && (riscv_iommu.flush_vma==0) && (riscv_iommu.flush_gvma==0));
-
 // MSI is disabled
-oc4_enable_wiredsignal_interrupts: assume property(riscv_iommu.fctl.wsi==1);
+oc3_enable_wiredsignal_interrupts: assume property(riscv_iommu.fctl.wsi==1);

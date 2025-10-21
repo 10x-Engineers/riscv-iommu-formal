@@ -25,58 +25,46 @@ module fifo
     output wire [DATA_WIDTH-1:0]  data_o
     );
 
-   localparam DEPTH_MAX = 1 << DEPTH_BITS;
+localparam DEPTH_MAX = 1 << DEPTH_BITS;
 
-   reg [DATA_WIDTH-1:0] data  [DEPTH_MAX-1:0];
+reg [DATA_WIDTH-1:0] data  [DEPTH_MAX-1:0];
 
-   reg                           empty;
+reg                           empty;
 
-   reg [DEPTH_BITS-1:0]          wptr;
-   reg [DEPTH_BITS-1:0]          rptr;
+reg [DEPTH_BITS-1:0]          wptr;
+reg [DEPTH_BITS-1:0]          rptr;
 
-   reg [DATA_WIDTH-1:0]          data_int;
+reg [DATA_WIDTH-1:0]          data_int;
 
-   wire [DEPTH_BITS-1:0] nxt_wptr  = wptr + push_i;
-   wire [DEPTH_BITS-1:0] nxt_rptr  = rptr + pop_i;
+wire [DEPTH_BITS-1:0] nxt_wptr  = wptr + push_i;
+wire [DEPTH_BITS-1:0] nxt_rptr  = rptr + pop_i;
 
-  always @(posedge clk)
-       if (push_i)
-         data[wptr] <= data_i;
+always @(posedge clk)
+     if (push_i)
+       data[wptr] <= data_i;
 
 
-   wire  nxt_empty = (empty || pop_i) && !push_i && (nxt_rptr == nxt_wptr);
+wire  nxt_empty = (empty || pop_i) && !push_i && (nxt_rptr == nxt_wptr);
 
-  always @(posedge clk or negedge resetn)
-    if (!resetn)
-      begin
-        empty <= 1'b1;
-        wptr  <= {DEPTH_BITS{1'b0}};
-        rptr  <= {DEPTH_BITS{1'b0}};
-      end
-    else
-      begin
-        empty <= nxt_empty;
-        wptr  <= nxt_wptr;
-        rptr  <= nxt_rptr;
-      end
+always @(posedge clk or negedge resetn)
+  if (!resetn)
+    begin
+      empty <= 1'b1;
+      wptr  <= {DEPTH_BITS{1'b0}};
+      rptr  <= {DEPTH_BITS{1'b0}};
+    end
+  else
+    begin
+      empty <= nxt_empty;
+      wptr  <= nxt_wptr;
+      rptr  <= nxt_rptr;
+    end
 
-  //  always @(posedge clk)
-  //    if (pop_i)
-  //      data_int <= data[rptr];
+wire   full    = !empty && (rptr == wptr);
 
-   wire   full    = !empty && (rptr == wptr);
+assign empty_o = empty;
+assign full_o  = full;
 
-   assign empty_o = empty;
-   assign full_o  = full;
-
-  //  assign data_o  = data_int;
-  assign data_o  = data[rptr];
-
-// ----------------------Assumptions Started----------------
-    // a1_full: // Do not push when full unless pop is also high
-    // assume property(full_o |-> !push_i || pop_i);
-    // a2_empty: // Do not pop data when empty_o is high.
-    // assume property(empty_o |-> !pop_i);
-// ----------------------Assumptions Ended------------------
+assign data_o  = data[rptr];
 
 endmodule
