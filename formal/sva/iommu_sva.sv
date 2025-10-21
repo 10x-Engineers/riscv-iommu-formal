@@ -1,3 +1,15 @@
+// Copyright © 2025 Muhammad Hayat, 10xEngineers.
+
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+// http://www.apache.org/licenses/LICENSE-2.0
+
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and limitations under the License.
+
 module iommu_sva #(
     // Number of IOTLB entries
     parameter int unsigned  IOTLB_ENTRIES       = 4,
@@ -14,7 +26,7 @@ module iommu_sva #(
     parameter bit                   InclBC      = 0,
     // Include debug register interface
     parameter bit                   InclDBG     = 0,
-    
+
     // MSI translation support
     parameter rv_iommu::msi_trans_t MSITrans    = rv_iommu::MSI_DISABLED,
     // Interrupt Generation Support
@@ -64,19 +76,19 @@ module iommu_sva #(
 
     // Translation Request Interface (Slave)
     input  axi_req_iommu_t  dev_tr_req_i,
-    input axi_rsp_t        dev_tr_resp_o,
+    input  axi_rsp_t        dev_tr_resp_o,
 
     // Translation Completion Interface (Master)
     input  axi_rsp_t        dev_comp_resp_i,
-    input axi_req_t        dev_comp_req_o,
+    input  axi_req_t        dev_comp_req_o,
 
     // Data Structures Interface (Master)
     input  axi_rsp_t        ds_resp_i,
-    input axi_req_t        ds_req_o,
+    input  axi_req_t        ds_req_o,
 
     // Programming Interface (Slave) (AXI4 + ATOP => Reg IF)
     input  axi_req_slv_t    prog_req_i,
-    input axi_rsp_slv_t    prog_resp_o,
+    input  axi_rsp_slv_t    prog_resp_o,
 
     input logic [(N_INT_VEC-1):0] wsi_wires_o
 );
@@ -95,17 +107,11 @@ tr_req_if #(.axi_req_iommu_t(axi_req_iommu_t),.axi_rsp_t(axi_rsp_t)) translation
 // Translation completion interface
 axi_ds_tr_compl #(.axi_rsp_t(axi_rsp_t), .axi_req_t(axi_req_t)) translation_compl (clk_i, rst_ni, dev_comp_resp_i, dev_comp_req_o);
 
-// data structure interface 
+// Data structure interface
 axi_ds_tr_compl #(.axi_rsp_t(axi_rsp_t), .axi_req_t(axi_req_t)) data_strcuture (clk_i, rst_ni, ds_resp_i, ds_req_o);
 
-// programming interface
+// Programming interface
 prog_if #(axi_req_slv_t, axi_rsp_slv_t) programming_interface_axi(clk_i, rst_ni, prog_req_i, prog_resp_o);
-
-
-
-//------------------------cover for checking ds_size possible values started
-// cov_check: // only possible value is 3
-// cover property (ds_req_o.ar_valid && ds_req_o.ar.size == 3);
 
 
 //--------------------------------internal fifo verification---------------------------------------------
@@ -115,12 +121,7 @@ prog_if #(axi_req_slv_t, axi_rsp_slv_t) programming_interface_axi(clk_i, rst_ni,
 `define ds_intf_fifo riscv_iommu.i_rv_iommu_ds_if
 fifo_v3_SVA ds_fifo_sva(clk_i, rst_ni,  `ds_intf_fifo.fifo_v3.flush_i,  0,  `ds_intf_fifo.fifo_v3.full_o,  `ds_intf_fifo.fifo_v3.empty_o, `ds_intf_fifo.fifo_v3.usage_o, `ds_intf_fifo.w_select, (`ds_intf_fifo.ds_req_o.aw_valid & `ds_intf_fifo.ds_resp_i.aw_ready), `ds_intf_fifo.w_select_fifo, (`ds_intf_fifo.ds_req_o.w_valid & `ds_intf_fifo.ds_resp_i.w_ready & `ds_intf_fifo.ds_req_o.w.last));
 
-assmp_flush_0:
-assume property (!riscv_iommu.i_rv_iommu_ds_if.fifo_v3.flush_i);
-
-// assmp_flush_0_soft_intf:
-// assume property (!riscv_iommu.i_rv_iommu_sw_if_wrapper.i_rv_iommu_fq_handler.fifo_v3.flush_i);
-
+assmp_flush_0: assume property (!riscv_iommu.i_rv_iommu_ds_if.fifo_v3.flush_i);
 
 // software interface fifo
 `define soft_intf_fifo riscv_iommu.i_rv_iommu_sw_if_wrapper.i_rv_iommu_fq_handler
@@ -128,7 +129,5 @@ logic [rv_iommu::TTYP_LEN + rv_iommu::CAUSE_LEN + riscv::VLEN + riscv::SVX + 24 
 assign soft_intf_data_i = {`soft_intf_fifo.trans_type_i, `soft_intf_fifo.cause_code_i, `soft_intf_fifo.iova_i, `soft_intf_fifo.gpaddr_i, `soft_intf_fifo.did_i, `soft_intf_fifo.pv_i, `soft_intf_fifo.pid_i, `soft_intf_fifo.is_supervisor_i, `soft_intf_fifo.is_guest_pf_i, `soft_intf_fifo.is_implicit_i};
 
 fifo_v3_SVA soft_intf_fifo_sva(clk_i, rst_ni, , 0, `soft_intf_fifo.is_full_o, `soft_intf_fifo.is_empty, `soft_intf_fifo.fifo_v3.usage_o, soft_intf_data_i, (`soft_intf_fifo.event_valid_i & !`soft_intf_fifo.edge_trigger_q), {`soft_intf_fifo.trans_type, `soft_intf_fifo.cause_code, `soft_intf_fifo.iova, `soft_intf_fifo.gpaddr, `soft_intf_fifo.did, `soft_intf_fifo.pv, `soft_intf_fifo.pid, `soft_intf_fifo.is_supervisor, `soft_intf_fifo.is_guest_pf, `soft_intf_fifo.is_implicit}, `soft_intf_fifo.is_idle);
-
-
 
 endmodule
