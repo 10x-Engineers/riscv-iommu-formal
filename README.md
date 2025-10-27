@@ -11,7 +11,6 @@ This work is licensed under the Apache-2.0. See [LICENSE](./LICENSE) file for de
 
 - [Introduction](#introduction)
 - [Repository Structure](#repository-structure)
-- [Features](#features)
 - [Verification Work Summary](#verification-work-summary)
 - [Roadmap](#roadmap)
 
@@ -20,7 +19,7 @@ This work is licensed under the Apache-2.0. See [LICENSE](./LICENSE) file for de
 
 ## Introduction
 
-The RISC-V IOMMU architecture consists of three primary components:
+The RISC-V IOMMU consists of three primary components:
 
 1. **Translation Logic** modules, which play a crucial role in the address translation process, enabling access to memory to locate data structures or caching context/translation data;
 2. **External interfaces**, used by the IOMMU to interact with other hardware subsystems within the platform.
@@ -51,8 +50,8 @@ The following components and functionalities were covered as part of the formal 
 - **Cache Verification (DDTC / PDTC / IOTLB)**
   - Verified insertion, invalidation, lookup, and replacement logic of IOMMU Address Translation Cache(IOATC).
 
-- **Properties for CDW**
-  - Wrote properties to verify the accurate reporting of error messages during device directory walk(DDT) and process directory walk(PDT).
+- **Properties for Memory Walk**
+  - Wrote properties to verify the accurate reporting of error messages during Device Directory Walk(DDW), Process Directory Walk(PDW) and Page Table Walk(PTW).
 
 ## Roadmap
 
